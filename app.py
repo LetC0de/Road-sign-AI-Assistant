@@ -16,7 +16,7 @@ app = Flask(__name__)
 
 # ─── LOAD ML MODEL (ONLY ONCE) ───
 model = load_model("best_model.keras")
-IMG_SIZE = 64
+IMG_SIZE = 32
 
 # ─── LABELS ───
 labels = {
@@ -64,6 +64,42 @@ Provide a detailed explanation including:
 @app.route("/")
 def home():
     return "🚀 Traffic Sign AI Backend Running"
+
+
+
+@app.route("/predict", methods=["POST"])
+def predict():
+    try:
+        # Check if file exists
+        if "image" not in request.files:
+            return jsonify({"error": "No image uploaded"}), 400
+
+        file = request.files["image"]
+
+        # Read image
+        img = Image.open(file).convert("RGB")
+        img = img.resize((IMG_SIZE, IMG_SIZE))
+
+        # Preprocess
+        img_array = np.array(img) / 255.0
+        img_array = np.expand_dims(img_array, axis=0)
+
+        # Prediction
+        result = model.predict(img_array)
+        predicted_class = int(np.argmax(result))
+        confidence = float(np.max(result)) * 100
+
+        prediction = label_map[predicted_class]
+
+        # Return response
+        return jsonify({
+            "prediction": prediction,
+            "confidence": round(confidence, 2)
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)})
+
 
 # ─── RUN APP ───
 if __name__ == "__main__":
