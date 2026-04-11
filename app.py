@@ -1,7 +1,8 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
+from tensorflow.keras.models import load_model 
+from flask_cors import CORS
 import numpy as np
 from PIL import Image
-from tensorflow.keras.models import load_model 
 import os
 
 # LLM imports
@@ -13,6 +14,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = Flask(__name__)
+CORS(app)
 
 # ─── LOAD ML MODEL (ONLY ONCE) ───
 model = load_model("best_model.keras")
@@ -63,43 +65,49 @@ Provide a detailed explanation including:
 # ─── HOME ROUTE ───
 @app.route("/")
 def home():
-    return "🚀 Traffic Sign AI Backend Running"
-
+    return render_template("index.html")
 
 
 @app.route("/predict", methods=["POST"])
 def predict():
     try:
-        # Check if file exists
+        # Check image
         if "image" not in request.files:
             return jsonify({"error": "No image uploaded"}), 400
 
         file = request.files["image"]
 
-        # Read image
+        # ─── IMAGE PROCESSING ───
         img = Image.open(file).convert("RGB")
         img = img.resize((IMG_SIZE, IMG_SIZE))
 
-        # Preprocess
         img_array = np.array(img) / 255.0
         img_array = np.expand_dims(img_array, axis=0)
 
-        # Prediction
+        # ─── ML PREDICTION ───
         result = model.predict(img_array)
         predicted_class = int(np.argmax(result))
         confidence = float(np.max(result)) * 100
 
         prediction = label_map[predicted_class]
 
-        # Return response
+        # ─── LLM CALL ───
+        prompt = prompt_template.invoke({
+            "sign_name": prediction
+        })
+
+        llm_response = llm.invoke(prompt)
+        explanation = llm_response.content
+
+        # ─── FINAL RESPONSE ───
         return jsonify({
             "prediction": prediction,
-            "confidence": round(confidence, 2)
+            "confidence": round(confidence, 2),
+            "explanation": explanation
         })
 
     except Exception as e:
         return jsonify({"error": str(e)})
-
 
 # ─── RUN APP ───
 if __name__ == "__main__":

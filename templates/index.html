@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Traffic Sign Assistant</title>
-    <link rel="stylesheet" href="style.css?v=2.0">
+    <link rel="stylesheet" href="../static/style.css">
+     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
 
@@ -34,6 +35,57 @@
     </div>
 
 </div>
+
+
+<script>
+const sendBtn = document.getElementById("sendBtn");
+const outputBox = document.getElementById("outputBox");
+const imageUpload = document.getElementById("imageUpload");
+
+sendBtn.addEventListener("click", async () => {
+
+    if (!imageUpload.files.length) {
+        alert("Please upload an image!");
+        return;
+    }
+
+    const file = imageUpload.files[0];
+
+    // FormData create
+    const formData = new FormData();
+    formData.append("image", file);
+
+    // Loading message
+    outputBox.innerHTML = "<p>⏳ Processing... Please wait</p>";
+
+    try {
+        const response = await fetch("/predict", {
+            method: "POST",
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.error) {
+            outputBox.innerHTML = `<p style="color:red;">Error: ${data.error}</p>`;
+            return;
+        }
+
+        // Show result
+        outputBox.innerHTML = `
+            <h3>🚦 Prediction: ${data.prediction}</h3>
+            <p><strong>Confidence:</strong> ${data.confidence}%</p>
+            <hr>
+            <p>${data.explanation}</p>
+        `;
+
+    } catch (error) {
+        outputBox.innerHTML = "<p style='color:red;'>Server error</p>";
+    }
+
+});
+</script>
+
 
 </body>
 </html>
