@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify, render_template
-from tensorflow.keras.models import load_model 
+from tensorflow.keras.models import load_model #type:ignore
 from flask_cors import CORS
 import numpy as np
 from PIL import Image
@@ -108,6 +108,45 @@ def predict():
 
     except Exception as e:
         return jsonify({"error": str(e)})
+
+# ─── CHAT ROUTE ───
+# This route handles text messages from the user and sends them to the LLM
+@app.route("/chat", methods=["POST"])
+def chat():
+    try:
+        # Get JSON data from the request
+        data = request.get_json()
+
+        # Extract the user's message from the JSON data
+        user_message = data.get("message", "")
+
+        # Validate that message is not empty
+        if not user_message or user_message.strip() == "":
+            return jsonify({"error": "No message provided"}), 400
+
+        # Create a prompt for the LLM with the user's message
+        # This is a general traffic assistant prompt
+        chat_prompt = f"""
+You are an expert traffic assistant AI.
+
+User question: {user_message}
+
+Provide a helpful, detailed, and accurate response about traffic signs, road safety, or driving rules.
+"""
+
+        # Send the prompt to the LLM and get response
+        llm_response = llm.invoke(chat_prompt)
+        response_text = llm_response.content
+
+        # Return the LLM response as JSON
+        return jsonify({
+            "response": response_text,
+            "user_message": user_message
+        })
+
+    except Exception as e:
+        # Handle any errors and return error message
+        return jsonify({"error": str(e)}), 500
 
 # ─── RUN APP ───
 if __name__ == "__main__":

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Traffic Sign Assistant</title>
+    <title>Road Sign Assistant</title>
     <link rel="stylesheet" href="../static/style.css">
      <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
@@ -170,21 +170,49 @@
 
     // Example: Add Enter key support to send message
     // This allows users to press Enter to submit instead of clicking Send
-    userInput.addEventListener("keypress", (e) => {
+    userInput.addEventListener("keypress", async (e) => {
         // Check if the pressed key is Enter (key code 13)
         if (e.key === "Enter") {
             // Get the text input
             const message = captureUserInput();
 
             if (message) {
-                // Display the captured message in the output box
-                outputBox.innerHTML = `<p><strong>You : </strong> ${message}</p>`;
+                // Display the user's message in the output box
+                outputBox.innerHTML = `<p><strong>You:</strong> ${message}</p><p>⏳ Waiting for response...</p>`;
 
                 // Clear the input field after capturing
                 userInput.value = "";
 
-                // Show notification
-                showNotification(`💬 Message sent: ${message}`);
+                try {
+                    // Send the message to the backend /chat route
+                    const response = await fetch("/chat", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify({ message: message })
+                    });
+
+                    // Parse the JSON response from backend
+                    const data = await response.json();
+
+                    // Check if there was an error
+                    if (data.error) {
+                        outputBox.innerHTML = `<p style="color:red;">Error: ${data.error}</p>`;
+                        return;
+                    }
+
+                    // Display the LLM response in the output box
+                    outputBox.innerHTML = `<p><strong>You:</strong> ${message}</p><hr><p><strong>Assistant:</strong> ${data.response}</p>`;
+
+                    // Show success notification
+                    showNotification(`✅ Response received!`);
+
+                } catch (error) {
+                    // Handle any errors during the fetch process
+                    outputBox.innerHTML = `<p style="color:red;">Error: Could not connect to server</p>`;
+                    console.error('Error:', error);
+                }
             }
         }
     });
