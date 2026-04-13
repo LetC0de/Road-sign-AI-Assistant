@@ -150,6 +150,44 @@
     const sendBtn = document.getElementById("sendBtn");
     const outputBox = document.getElementById("outputBox");
     const imageUpload = document.getElementById("imageUpload");
+    const userInput = document.getElementById("userInput"); // Get the text input element
+
+    // BASIC INPUT CAPTURE EXAMPLE
+    // This function demonstrates how to capture text from the input field
+    function captureUserInput() {
+        // Step 1: Get the value (text) from the input field
+        const userMessage = userInput.value;
+
+        // Step 2: Check if the input is not empty
+        if (userMessage.trim() === "") {
+            alert("Please enter a message!");
+            return null;
+        }
+
+        // Step 3: Return the captured text
+        return userMessage;
+    }
+
+    // Example: Add Enter key support to send message
+    // This allows users to press Enter to submit instead of clicking Send
+    userInput.addEventListener("keypress", (e) => {
+        // Check if the pressed key is Enter (key code 13)
+        if (e.key === "Enter") {
+            // Get the text input
+            const message = captureUserInput();
+
+            if (message) {
+                // Display the captured message in the output box
+                outputBox.innerHTML = `<p><strong>You : </strong> ${message}</p>`;
+
+                // Clear the input field after capturing
+                userInput.value = "";
+
+                // Show notification
+                showNotification(`💬 Message sent: ${message}`);
+            }
+        }
+    });
 
     // Show notification when image is uploaded
     imageUpload.addEventListener("change", (e) => {
