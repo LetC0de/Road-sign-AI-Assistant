@@ -9,82 +9,96 @@
 </head>
 <body>
 
-<div class="container">
+<div class="main-wrapper">
+    <div class="container">
 
-    <!-- Header -->
-    <h1>🚦 Traffic Sign Assistant</h1>
+        <!-- Header -->
+        <h1>🚦 Traffic Sign Assistant</h1>
 
-    <!-- Output Box -->
-    <div class="output-box" id="outputBox">
-        <p class="placeholder">LLM response will appear here...</p>
+        <!-- Output Box -->
+        <div class="output-box" id="outputBox">
+            <p class="placeholder">LLM response will appear here...</p>
+        </div>
+
+        <!-- Input Section -->
+        <div class="input-section">
+
+            <!-- Upload Button -->
+            <label for="imageUpload" class="upload-btn">📷</label>
+            <input type="file" id="imageUpload" hidden>
+
+            <!-- Text Input -->
+            <input type="text" id="userInput" placeholder="Enter image path or query...">
+
+            <!-- Send Button -->
+            <button id="sendBtn">Send ➤</button>
+
+        </div>
+
     </div>
 
-    <!-- Input Section -->
-    <div class="input-section">
-
-        <!-- Upload Button -->
-        <label for="imageUpload" class="upload-btn">📷</label>
-        <input type="file" id="imageUpload" hidden>
-
-        <!-- Text Input -->
-        <input type="text" id="userInput" placeholder="Enter image path or query...">
-
-        <!-- Send Button -->
-        <button id="sendBtn">Send ➤</button>
-
+    <!-- Signs Gallery Box -->
+    <div class="signs-gallery">
+        <h2>Traffic Signs</h2>
+        <div class="signs-grid" id="signsGrid">
+            <!-- Signs will be loaded here -->
+        </div>
     </div>
-
 </div>
 
-
 <script>
-const sendBtn = document.getElementById("sendBtn");
-const outputBox = document.getElementById("outputBox");
-const imageUpload = document.getElementById("imageUpload");
-
-sendBtn.addEventListener("click", async () => {
-
-    if (!imageUpload.files.length) {
-        alert("Please upload an image!");
-        return;
+    // Load all sign images from Meta folder
+    const signsGrid = document.getElementById('signsGrid');
+    for (let i = 0; i <= 42; i++) {
+        const img = document.createElement('img');
+        img.src = `../Meta/${i}.png`;
+        img.alt = `Traffic Sign ${i}`;
+        img.className = 'sign-image';
+        signsGrid.appendChild(img);
     }
 
-    const file = imageUpload.files[0];
+    // Prediction functionality
+    const sendBtn = document.getElementById("sendBtn");
+    const outputBox = document.getElementById("outputBox");
+    const imageUpload = document.getElementById("imageUpload");
 
-    // FormData create
-    const formData = new FormData();
-    formData.append("image", file);
-
-    // Loading message
-    outputBox.innerHTML = "<p>⏳ Processing... Please wait</p>";
-
-    try {
-        const response = await fetch("/predict", {
-            method: "POST",
-            body: formData
-        });
-
-        const data = await response.json();
-
-        if (data.error) {
-            outputBox.innerHTML = `<p style="color:red;">Error: ${data.error}</p>`;
+    sendBtn.addEventListener("click", async () => {
+        if (!imageUpload.files.length) {
+            alert("Please upload an image!");
             return;
         }
 
-        // Show result
-        outputBox.innerHTML = `
-            <h3>🚦 Prediction: ${data.prediction}</h3>
-            <p><strong>Confidence:</strong> ${data.confidence}%</p>
-            <hr>
-            <p>${data.explanation}</p>
-        `;
+        const file = imageUpload.files[0];
+        // FormData create
+        const formData = new FormData();
+        formData.append("image", file);
 
-    } catch (error) {
-        outputBox.innerHTML = "<p style='color:red;'>Server error</p>";
-    }
+        // Loading message
+        outputBox.innerHTML = "<p>⏳ Processing... Please wait</p>";
 
-});
+        try {
+            const response = await fetch("/predict", {
+                method: "POST",
+                body: formData
+            });
+
+            const data = await response.json();
+
+            if (data.error) {
+                outputBox.innerHTML = `<p style="color:red;">Error: ${data.error}</p>`;
+                return;
+            }
+
+            // Show result
+            outputBox.innerHTML = `<h3>🚦 Prediction: ${data.prediction}</h3><p><strong>Confidence:</strong> ${data.confidence}%</p><hr><p>${data.explanation}</p>`;
+        } catch (error) {
+            outputBox.innerHTML = "<p style='color:red;'>Server error</p>";
+        }
+    });
 </script>
+
+
+
 
 
 </body>
