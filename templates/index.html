@@ -46,21 +46,51 @@
     </div>
 </div>
 
+<!-- Notification Popup -->
+<div id="notification" class="notification">
+    <span id="notificationText"></span>
+</div>
+
 <script>
     // Load all sign images from Meta folder
     const signsGrid = document.getElementById('signsGrid');
     for (let i = 0; i <= 42; i++) {
         const img = document.createElement('img');
-        img.src = `../Meta/${i}.png`;
+        img.src = `../static/Meta/${i}.png`;
         img.alt = `Traffic Sign ${i}`;
         img.className = 'sign-image';
         signsGrid.appendChild(img);
+    }
+
+    // Notification function
+    function showNotification(message) {
+        const notification = document.getElementById("notification");
+        const notificationText = document.getElementById("notificationText");
+
+        notificationText.textContent = message;
+        notification.classList.add("show");
+
+        setTimeout(() => {
+            notification.classList.remove("show");
+        }, 3000);
     }
 
     // Prediction functionality
     const sendBtn = document.getElementById("sendBtn");
     const outputBox = document.getElementById("outputBox");
     const imageUpload = document.getElementById("imageUpload");
+
+    // Show notification when image is uploaded
+    imageUpload.addEventListener("change", (e) => {
+        if (e.target.files.length > 0) {
+            const fileName = e.target.files[0].name;
+            showNotification(`📷 Photo uploaded: ${fileName}`);
+
+            // Change upload button color
+            const uploadBtn = document.querySelector('.upload-btn');
+            uploadBtn.classList.add('uploaded');
+        }
+    });
 
     sendBtn.addEventListener("click", async () => {
         if (!imageUpload.files.length) {

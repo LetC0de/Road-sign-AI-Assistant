@@ -156,18 +156,28 @@ h1 {
 
 /* Upload Button */
 .upload-btn {
-    background: #74b9ff;
-    padding: 12px 16px;
-    border-radius: 50%;
+    background: #5a9fd4;
+    padding: 12px 20px;
+    border-radius: 10px;
     cursor: pointer;
-    font-size: 22px;
+    font-size: 14px;
+    font-weight: 600;
     color: white;
     transition: 0.3s;
     flex-shrink: 0;
+    white-space: nowrap;
 }
 
 .upload-btn:hover {
-    background: #0984e3;
+    background: #0652a8;
+}
+
+.upload-btn.uploaded {
+    background: #00b894;
+}
+
+.upload-btn.uploaded:hover {
+    background: #019875;
 }
 
 /* Input Field */
@@ -202,6 +212,30 @@ button:hover {
 /* Hidden file input */
 input[type="file"] {
     display: none;
+}
+
+/* Notification Popup */
+.notification {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: #00b894;
+    color: white;
+    padding: 15px 25px;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    font-size: 15px;
+    font-weight: 600;
+    opacity: 0;
+    transition: all 0.3s ease;
+    pointer-events: none;
+    z-index: 1000;
+}
+
+.notification.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
 }
 
 /* ── Responsive Design ── */
