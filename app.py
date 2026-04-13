@@ -8,6 +8,7 @@ import os
 # LLM imports
 from langchain_mistralai import ChatMistralAI
 from langchain_core.prompts import PromptTemplate
+from langchain_core.output_parsers import StrOutputParser
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -50,16 +51,28 @@ label_map = {v: labels[int(k)] for k, v in class_indices.items()}
 # ─── LLM SETUP ───
 llm = ChatMistralAI(model="mistral-small-2506")
 
+# Output parser to format LLM responses
+output_parser = StrOutputParser()
+
+# Prompt template for traffic sign predictions with structured output
 prompt_template = PromptTemplate.from_template("""
 You are an expert traffic assistant AI.
 
 A road sign has been detected with the label: "{sign_name}".
 
-Provide a detailed explanation including:
-1. Meaning
-2. Driver Action
-3. Consequences
-4. Importance
+Provide a detailed explanation in the following format:
+
+**Meaning:**
+[Explain what this sign means]
+
+**Driver Action:**
+[What should the driver do when they see this sign]
+
+**Consequences:**
+[What happens if the driver ignores this sign]
+
+**Importance:**
+[Why this sign is important for road safety]
 """)
 
 # ─── HOME ROUTE ───
@@ -91,13 +104,14 @@ def predict():
 
         prediction = label_map[predicted_class]
 
-        # ─── LLM CALL ───
-        prompt = prompt_template.invoke({
+        # ─── LLM CALL WITH STRUCTURED OUTPUT ───
+        # Create a chain: prompt -> llm -> output parser
+        chain = prompt_template | llm | output_parser
+
+        # Invoke the chain with the sign name
+        explanation = chain.invoke({
             "sign_name": prediction
         })
-
-        llm_response = llm.invoke(prompt)
-        explanation = llm_response.content
 
         # ─── FINAL RESPONSE ───
         return jsonify({
@@ -124,19 +138,28 @@ def chat():
         if not user_message or user_message.strip() == "":
             return jsonify({"error": "No message provided"}), 400
 
-        # Create a prompt for the LLM with the user's message
-        # This is a general traffic assistant prompt
-        chat_prompt = f"""
+        # Create a structured prompt for the LLM with the user's message
+        # This ensures the response is well-formatted
+        chat_prompt = PromptTemplate.from_template("""
 You are an expert traffic assistant AI.
 
-User question: {user_message}
+User question: {question}
 
 Provide a helpful, detailed, and accurate response about traffic signs, road safety, or driving rules.
-"""
 
-        # Send the prompt to the LLM and get response
-        llm_response = llm.invoke(chat_prompt)
-        response_text = llm_response.content
+Format your response with clear sections using markdown:
+- Use **bold** for important terms
+- Use bullet points for lists
+- Keep paragraphs concise and readable
+""")
+
+        # Create a chain: prompt -> llm -> output parser for structured output
+        chat_chain = chat_prompt | llm | output_parser
+
+        # Invoke the chain with the user's message
+        response_text = chat_chain.invoke({
+            "question": user_message
+        })
 
         # Return the LLM response as JSON
         return jsonify({
