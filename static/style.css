@@ -118,6 +118,13 @@ body {
     transform: scale(1.05);
 }
 
+/* Visual feedback for selected sign - adds blue border and glow effect */
+.sign-image.selected {
+    border: 3px solid #0984e3;
+    box-shadow: 0 0 15px rgba(9, 132, 227, 0.6);
+    transform: scale(1.08);
+}
+
 /* Header - Responsive */
 h1 {
     text-align: center;

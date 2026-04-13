@@ -28,7 +28,7 @@
             <input type="file" id="imageUpload" hidden accept="image/*">
 
             <!-- Text Input -->
-            <input type="text" id="userInput" placeholder="Enter image path or query...">
+            <input type="text" id="userInput" placeholder="ask...">
 
             <!-- Send Button -->
             <button id="sendBtn">Send ➤</button>
@@ -59,8 +59,79 @@
         img.src = `../static/Meta/${i}.png`;
         img.alt = `Traffic Sign ${i}`;
         img.className = 'sign-image';
+        // Add data attribute to store sign number for identification
+        img.dataset.signNumber = i;
         signsGrid.appendChild(img);
     }
+
+    // Variable to track currently selected sign from gallery
+    let selectedSignFromGallery = null;
+
+    // Add click event listener to all sign images in the gallery
+    // This allows users to click on any traffic sign to send it to the LLM
+    signsGrid.addEventListener('click', async (e) => {
+        // Check if the clicked element is a sign image
+        if (e.target.classList.contains('sign-image')) {
+            const clickedSign = e.target;
+            const signNumber = clickedSign.dataset.signNumber;
+
+            // Remove 'selected' class from previously selected sign (if any)
+            const previouslySelected = document.querySelector('.sign-image.selected');
+            if (previouslySelected) {
+                previouslySelected.classList.remove('selected');
+            }
+
+            // Add 'selected' class to the clicked sign for visual feedback
+            clickedSign.classList.add('selected');
+
+            // Store the selected sign for reference
+            selectedSignFromGallery = clickedSign.src;
+
+            // Show notification that sign was selected
+            showNotification(`🚦 Traffic Sign ${signNumber} selected`);
+
+            // Fetch the image as a blob to send to backend
+            try {
+                const response = await fetch(clickedSign.src);
+                const blob = await response.blob();
+
+                // Create a File object from the blob
+                const file = new File([blob], `sign_${signNumber}.png`, { type: 'image/png' });
+
+                // Create FormData to send to backend
+                const formData = new FormData();
+                formData.append("image", file);
+
+                // Show loading message in output box
+                outputBox.innerHTML = "<p>⏳ Processing traffic sign... Please wait</p>";
+
+                // Send the selected sign to the backend LLM for prediction
+                const predictResponse = await fetch("/predict", {
+                    method: "POST",
+                    body: formData
+                });
+
+                const data = await predictResponse.json();
+
+                // Handle error response from backend
+                if (data.error) {
+                    outputBox.innerHTML = `<p style="color:red;">Error: ${data.error}</p>`;
+                    return;
+                }
+
+                // Display the LLM prediction result in the output box
+                outputBox.innerHTML = `<h3>🚦 Prediction: ${data.prediction}</h3><p><strong>Confidence:</strong> ${data.confidence}%</p><hr><p>${data.explanation}</p>`;
+
+                // Show success notification
+                showNotification(` Sign analyzed successfully!`);
+
+            } catch (error) {
+                // Handle any errors during the fetch or prediction process
+                outputBox.innerHTML = "<p style='color:red;'>Error processing sign. Please try again.</p>";
+                console.error('Error:', error);
+            }
+        }
+    });
 
     // Notification function
     function showNotification(message) {
@@ -126,10 +197,6 @@
         }
     });
 </script>
-
-
-
-
 
 </body>
 </html>
