@@ -120,7 +120,9 @@
                 }
 
                 // Display the LLM prediction result in the output box
-                outputBox.innerHTML = `<h3>🚦 Prediction: ${data.prediction}</h3><p><strong>Confidence:</strong> ${data.confidence}%</p><hr><p>${data.explanation}</p>`;
+                // Replace \n with <br> to preserve line breaks in HTML
+                const formattedExplanation = data.explanation.replace(/\n/g, '<br>');
+                outputBox.innerHTML = `<h3>🚦 Prediction: ${data.prediction}</h3><p><strong>Confidence:</strong> ${data.confidence}%</p><hr><p>${formattedExplanation}</p>`;
 
                 // Show success notification
                 showNotification(` Sign analyzed successfully!`);
@@ -203,7 +205,9 @@
                     }
 
                     // Display the LLM response in the output box
-                    outputBox.innerHTML = `<p><strong>You:</strong> ${message}</p><hr><p><strong>Assistant:</strong> ${data.response}</p>`;
+                    // Replace \n with <br> to preserve line breaks in HTML
+                    const formattedResponse = data.response.replace(/\n/g, '<br>');
+                    outputBox.innerHTML = `<p><strong>You:</strong> ${message}</p><hr><p><strong>Assistant:</strong> ${formattedResponse}</p>`;
 
                     // Show success notification
                     showNotification(`✅ Response received!`);
@@ -257,7 +261,9 @@
             }
 
             // Show result
-            outputBox.innerHTML = `<h3>🚦 Prediction: ${data.prediction}</h3><p><strong>Confidence:</strong> ${data.confidence}%</p><hr><p>${data.explanation}</p>`;
+            // Replace \n with <br> to preserve line breaks in HTML
+            const formattedExplanation = data.explanation.replace(/\n/g, '<br>');
+            outputBox.innerHTML = `<h3>🚦 Prediction: ${data.prediction}</h3><p><strong>Confidence:</strong> ${data.confidence}%</p><hr><p>${formattedExplanation}</p>`;
         } catch (error) {
             outputBox.innerHTML = "<p style='color:red;'>Server error</p>";
         }

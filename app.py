@@ -7,7 +7,7 @@ import os
 
 # LLM imports
 from langchain_mistralai import ChatMistralAI
-from langchain_core.prompts import PromptTemplate
+from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from dotenv import load_dotenv
 
@@ -55,25 +55,42 @@ llm = ChatMistralAI(model="mistral-small-2506")
 output_parser = StrOutputParser()
 
 # Prompt template for traffic sign predictions with structured output
-prompt_template = PromptTemplate.from_template("""
-You are an expert traffic assistant AI.
+from langchain_core.prompts import ChatPromptTemplate
 
-A road sign has been detected with the label: "{sign_name}".
+prompt_template = ChatPromptTemplate.from_messages([
+    ("system", """
+You are a professional road sign assistant.
 
-Provide a detailed explanation in the following format:
+STRICT OUTPUT FORMAT:
 
-**Meaning:**
-[Explain what this sign means]
+Description:
+[Write 60 - 100 word short sentences about the sign]
 
-**Driver Action:**
-[What should the driver do when they see this sign]
+Meaning:
+- [First key point]
+- [Second key point]
 
-**Consequences:**
-[What happens if the driver ignores this sign]
+Driver Action:
+- [What driver should do - point 1]
+- [What driver should do - point 2]
 
-**Importance:**
-[Why this sign is important for road safety]
-""")
+Consequences:
+- [What happens if ignored - point 1]
+- [What happens if ignored - point 2]
+
+Importance:
+- [Why it matters - point 1]
+- [Why it matters - point 2]
+
+RULES:
+- Keep each bullet point under 20 - 40 words
+- Use simple, clear language
+- No markdown symbols like ** or ##
+- Follow the exact format above
+"""),
+
+    ("human", "Traffic sign: {sign_name}")
+])
 
 # ─── HOME ROUTE ───
 @app.route("/")
@@ -140,18 +157,29 @@ def chat():
 
         # Create a structured prompt for the LLM with the user's message
         # This ensures the response is well-formatted
-        chat_prompt = PromptTemplate.from_template("""
-You are an expert traffic assistant AI.
+        from langchain_core.prompts import ChatPromptTemplate
 
-User question: {question}
+        chat_prompt = ChatPromptTemplate.from_messages([
+            ("system", """
+You are a Road sign assistant.
 
-Provide a helpful, detailed, and accurate response about traffic signs, road safety, or driving rules.
+OUTPUT FORMAT:
 
-Format your response with clear sections using markdown:
-- Use **bold** for important terms
-- Use bullet points for lists
-- Keep paragraphs concise and readable
-""")
+Answer:
+- [First point - keep under 15 words]
+- [Second point - keep under 15 words]
+- [Third point - keep under 15 words]
+
+RULES:
+- Use ONLY bullet points
+- No paragraphs or extra text
+- No markdown symbols (no **, no ##)
+- Keep each point clear and concise
+- Maximum 4-5 bullet points
+"""),
+
+    ("human", "{question}")
+])
 
         # Create a chain: prompt -> llm -> output parser for structured output
         chat_chain = chat_prompt | llm | output_parser
