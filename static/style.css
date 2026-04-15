@@ -163,7 +163,7 @@ h1 {
 
 /* Upload Button */
 .upload-btn {
-    background: #5a9fd4;
+    background: #00b894;
     padding: 12px 20px;
     border-radius: 10px;
     cursor: pointer;
@@ -176,7 +176,7 @@ h1 {
 }
 
 .upload-btn:hover {
-    background: #0652a8;
+    background: #019875;
 }
 
 .upload-btn.uploaded {
