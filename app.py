@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template, session
+from flask import Flask, request, jsonify, render_template, session, send_from_directory
 from tensorflow.keras.models import load_model #type:ignore
 from flask_cors import CORS
 import numpy as np
@@ -99,6 +99,12 @@ prompt_template = ChatPromptTemplate.from_messages([
 @app.route("/")
 def home():
     return render_template("index.html")
+
+
+# ─── SERVE IMAGES FROM IMAGES FOLDER ───
+@app.route("/images/<path:filename>")
+def serve_image(filename):
+    return send_from_directory("images", filename)
 
 
 @app.route("/predict", methods=["POST"])
