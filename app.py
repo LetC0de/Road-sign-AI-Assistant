@@ -18,8 +18,12 @@ load_dotenv()
 app = Flask(__name__)
 CORS(app)
 
+# Set secret key for session management
+# This is required for Flask sessions to work
 app.secret_key = os.getenv('SECRET_KEY')
 
+# Dictionary to store conversation history per session
+# Key: session_id, Value: list of messages (HumanMessage and AIMessage)
 conversation_memory = {}
 
 # ─── LOAD ML MODEL ───
@@ -89,6 +93,8 @@ labels = {
 
 # ─── LLM SETUP ───
 llm = ChatMistralAI(model="mistral-small-2506")
+
+# Output parser to format LLM responses
 output_parser = StrOutputParser()
 
 prompt_template = ChatPromptTemplate.from_messages([
@@ -125,12 +131,15 @@ RULES:
     ("human", "Traffic sign: {sign_name}")
 ])
 
+# ─── HOME ROUTE ───
 @app.route("/")
 def home():
     return render_template("index.html")
 
 
 # ─── SERVE IMAGES FROM IMAGES FOLDER ───
+# This route serves images from the images/ folder for model prediction
+# Frontend displays images from static/Meta/ but sends images from images/ folder to model
 @app.route("/images/<path:filename>")
 def serve_image(filename):
     return send_from_directory("images", filename)
@@ -139,43 +148,51 @@ def serve_image(filename):
 @app.route("/predict", methods=["POST"])
 def predict():
     try:
+        # Get or create session ID for this user
         if 'session_id' not in session:
             import uuid
             session['session_id'] = str(uuid.uuid4())
 
         session_id = session['session_id']
 
+        # Initialize conversation memory for this session if it doesn't exist
         if session_id not in conversation_memory:
             conversation_memory[session_id] = []
 
+        # Check image
         if "image" not in request.files:
             return jsonify({"error": "No image uploaded"}), 400
 
         file = request.files["image"]
 
-        # Image processing
+        # ─── IMAGE PROCESSING ───
         img = Image.open(file).convert("RGB")
         img = img.resize((IMG_SIZE, IMG_SIZE))
 
         img_array = np.array(img) / 255.0
         img_array = np.expand_dims(img_array, axis=0)
 
-        # Prediction
+        # ─── ML PREDICTION ───
         result = model.predict(img_array)
         predicted_class = int(np.argmax(result))
         confidence = float(np.max(result)) * 100
 
-        # ✅ FIX (same logic, no file loading)
+        # ✅ FIX: Convert model prediction to correct label
+        # Model output → folder name → actual label name
         predicted_folder = class_labels[predicted_class]
         prediction = labels[int(predicted_folder)]
 
-        # LLM
+        # ─── LLM CALL WITH STRUCTURED OUTPUT AND MEMORY ───
+        # Create a chain: prompt -> llm -> output parser
         chain = prompt_template | llm | output_parser
 
+        # Invoke the chain with the sign name
         explanation = chain.invoke({
             "sign_name": prediction
         })
 
+        # Store this interaction in conversation memory
+        # Save what sign was detected and the explanation
         conversation_memory[session_id].append(
             HumanMessage(content=f"User clicked on traffic sign: {prediction}")
         )
@@ -183,6 +200,7 @@ def predict():
             AIMessage(content=explanation)
         )
 
+        # ─── FINAL RESPONSE ───
         return jsonify({
             "prediction": prediction,
             "confidence": round(confidence, 2),
@@ -194,6 +212,8 @@ def predict():
 
 
 # ─── CHAT ROUTE ───
+# This route handles text messages from the user and sends them to the LLM
+# It maintains conversation memory so the LLM can reference previous messages
 @app.route("/chat", methods=["POST"])
 def chat():
     try:
@@ -219,6 +239,7 @@ def chat():
             return jsonify({"error": "No message provided"}), 400
 
         # Create a structured prompt for the LLM with conversation history
+        # This allows the LLM to reference previous signs and conversations
         chat_prompt = ChatPromptTemplate.from_messages([
             ("system", """
 You are a Road sign assistant with memory of the conversation.
@@ -275,5 +296,6 @@ RULES:
         return jsonify({"error": str(e)}), 500
 
 
+# ─── RUN APP ───
 if __name__ == "__main__":
     app.run(debug=True)
