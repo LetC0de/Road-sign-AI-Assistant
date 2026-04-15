@@ -236,38 +236,78 @@
     });
 
     sendBtn.addEventListener("click", async () => {
-        if (!imageUpload.files.length) {
-            alert("Please upload an image!");
-            return;
-        }
+        // Check if user has uploaded an image
+        if (imageUpload.files.length > 0) {
+            // Handle image upload
+            const file = imageUpload.files[0];
+            // FormData create
+            const formData = new FormData();
+            formData.append("image", file);
 
-        const file = imageUpload.files[0];
-        // FormData create
-        const formData = new FormData();
-        formData.append("image", file);
+            // Loading message
+            outputBox.innerHTML = "<p>⏳ Processing... Please wait</p>";
 
-        // Loading message
-        outputBox.innerHTML = "<p>⏳ Processing... Please wait</p>";
+            try {
+                const response = await fetch("/predict", {
+                    method: "POST",
+                    body: formData
+                });
 
-        try {
-            const response = await fetch("/predict", {
-                method: "POST",
-                body: formData
-            });
+                const data = await response.json();
 
-            const data = await response.json();
+                if (data.error) {
+                    outputBox.innerHTML = `<p style="color:red;">Error: ${data.error}</p>`;
+                    return;
+                }
 
-            if (data.error) {
-                outputBox.innerHTML = `<p style="color:red;">Error: ${data.error}</p>`;
-                return;
+                // Show result
+                // Replace \n with <br> to preserve line breaks in HTML
+                const formattedExplanation = data.explanation.replace(/\n/g, '<br>');
+                outputBox.innerHTML = `<h3>🚦 Prediction: ${data.prediction}</h3><p><strong>Confidence:</strong> ${data.confidence}%</p><hr><p>${formattedExplanation}</p>`;
+            } catch (error) {
+                outputBox.innerHTML = "<p style='color:red;'>Server error</p>";
             }
+        } else if (userInput.value.trim() !== "") {
+            // Handle text message
+            const message = userInput.value.trim();
 
-            // Show result
-            // Replace \n with <br> to preserve line breaks in HTML
-            const formattedExplanation = data.explanation.replace(/\n/g, '<br>');
-            outputBox.innerHTML = `<h3>🚦 Prediction: ${data.prediction}</h3><p><strong>Confidence:</strong> ${data.confidence}%</p><hr><p>${formattedExplanation}</p>`;
-        } catch (error) {
-            outputBox.innerHTML = "<p style='color:red;'>Server error</p>";
+            // Display the user's message in the output box
+            outputBox.innerHTML = `<p><strong>You:</strong> ${message}</p><p>⏳ Waiting for response...</p>`;
+
+            // Clear the input field
+            userInput.value = "";
+
+            try {
+                // Send the message to the backend /chat route
+                const response = await fetch("/chat", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ message: message })
+                });
+
+                const data = await response.json();
+
+                if (data.error) {
+                    outputBox.innerHTML = `<p style="color:red;">Error: ${data.error}</p>`;
+                    return;
+                }
+
+                // Display the LLM response
+                // Replace \n with <br> to preserve line breaks in HTML
+                const formattedResponse = data.response.replace(/\n/g, '<br>');
+                outputBox.innerHTML = `<p><strong>You:</strong> ${message}</p><hr><p><strong>Assistant:</strong> ${formattedResponse}</p>`;
+
+                // Show success notification
+                showNotification(`✅ Response received!`);
+
+            } catch (error) {
+                outputBox.innerHTML = `<p style="color:red;">Error: Could not connect to server</p>`;
+                console.error('Error:', error);
+            }
+        } else {
+            alert("Please enter a message or upload an image!");
         }
     });
 </script>
