@@ -264,6 +264,14 @@
                 // Replace \n with <br> to preserve line breaks in HTML
                 const formattedExplanation = data.explanation.replace(/\n/g, '<br>');
                 outputBox.innerHTML = `<h3>🚦 Prediction: ${data.prediction}</h3><p><strong>Confidence:</strong> ${data.confidence}%</p><hr><p>${formattedExplanation}</p>`;
+
+                // Clear the file input after successful upload
+                imageUpload.value = "";
+
+                // Remove uploaded class from upload button
+                const uploadBtn = document.querySelector('.upload-btn');
+                uploadBtn.classList.remove('uploaded');
+
             } catch (error) {
                 outputBox.innerHTML = "<p style='color:red;'>Server error</p>";
             }
