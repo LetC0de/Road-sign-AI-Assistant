@@ -92,7 +92,36 @@ llm = ChatMistralAI(model="mistral-small-2506")
 output_parser = StrOutputParser()
 
 prompt_template = ChatPromptTemplate.from_messages([
-    ("system", "You are a professional road sign assistant."),
+    ("system", """
+You are a professional road sign assistant.
+
+STRICT OUTPUT FORMAT:
+
+Description:
+[Write 60 - 100 word short sentences about the sign]
+
+Meaning:
+- [First key point]
+- [Second key point]
+
+Driver Action:
+- [What driver should do - point 1]
+- [What driver should do - point 2]
+
+Consequences:
+- [What happens if ignored - point 1]
+- [What happens if ignored - point 2]
+
+Importance:
+- [Why it matters - point 1]
+- [Why it matters - point 2]
+
+RULES:
+- Keep each bullet point under 20 - 40 words
+- Use simple, clear language
+- No markdown symbols like ** or ##
+- Follow the exact format above
+"""),
     ("human", "Traffic sign: {sign_name}")
 ])
 
@@ -162,6 +191,88 @@ def predict():
 
     except Exception as e:
         return jsonify({"error": str(e)})
+
+
+# ─── CHAT ROUTE ───
+@app.route("/chat", methods=["POST"])
+def chat():
+    try:
+        # Get or create session ID for this user
+        if 'session_id' not in session:
+            import uuid
+            session['session_id'] = str(uuid.uuid4())
+
+        session_id = session['session_id']
+
+        # Initialize conversation memory for this session if it doesn't exist
+        if session_id not in conversation_memory:
+            conversation_memory[session_id] = []
+
+        # Get JSON data from the request
+        data = request.get_json()
+
+        # Extract the user's message from the JSON data
+        user_message = data.get("message", "")
+
+        # Validate that message is not empty
+        if not user_message or user_message.strip() == "":
+            return jsonify({"error": "No message provided"}), 400
+
+        # Create a structured prompt for the LLM with conversation history
+        chat_prompt = ChatPromptTemplate.from_messages([
+            ("system", """
+You are a Road sign assistant with memory of the conversation.
+
+CONTEXT: You can reference previous traffic signs that were discussed in this conversation.
+If the user asks about "this sign" or "that sign", refer to the most recent sign mentioned.
+
+OUTPUT FORMAT:
+
+Answer:
+   You can give me short description about 100 - 200 words if needed.
+- [First point - keep under 50 - 100 words as need based on question]
+- [Second point - keep under 50 - 100 words as need based on question]
+- [Third point - keep under 50 - 100 words as need based on question]
+
+RULES:
+- Use ONLY bullet points
+- No paragraphs or extra text
+- No markdown symbols (no **, no ##)
+- Keep each point clear and concise
+- Maximum 4-5 bullet points
+- Reference previous context when relevant
+"""),
+            # Include conversation history here
+            *conversation_memory[session_id],
+            # Add the current user message
+            ("human", "{question}")
+        ])
+
+        # Create a chain: prompt -> llm -> output parser for structured output
+        chat_chain = chat_prompt | llm | output_parser
+
+        # Invoke the chain with the user's message
+        response_text = chat_chain.invoke({
+            "question": user_message
+        })
+
+        # Store this interaction in conversation memory
+        conversation_memory[session_id].append(
+            HumanMessage(content=user_message)
+        )
+        conversation_memory[session_id].append(
+            AIMessage(content=response_text)
+        )
+
+        # Return the LLM response as JSON
+        return jsonify({
+            "response": response_text,
+            "user_message": user_message
+        })
+
+    except Exception as e:
+        # Handle any errors and return error message
+        return jsonify({"error": str(e)}), 500
 
 
 if __name__ == "__main__":
