@@ -5,7 +5,7 @@ python-dotenv
 tensorflow-cpu==2.13.0
 langchain==0.0.350
 langchain-community==0.0.20
-langchain-core==0.1.23
+langchain-core==0.1.27
 langchain-mistralai==0.0.5
 langsmith==0.0.87
 typing-extensions==4.5.0
