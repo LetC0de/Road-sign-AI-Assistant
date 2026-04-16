@@ -2,7 +2,7 @@ flask
 flask-cors
 gunicorn
 python-dotenv
-tensorflow-cpu==2.13.0
+tensorflow-cpu==2.15.0
 langchain
 langchain-core
 langchain-community
