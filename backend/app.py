@@ -27,7 +27,7 @@ app.secret_key = os.getenv('SECRET_KEY')
 conversation_memory = {}
 
 # ─── LOAD ML MODEL ───
-model = load_model(os.path.join(os.getcwd(), "traffic_sign_model.keras"), compile=False)
+model = load_model(os.path.join(os.getcwd(), "traffic_sign_model.h5"), compile=False)
 IMG_SIZE = 64
 
 # ✅ DIRECT CLASS INDICES (NO FILE LOAD)
