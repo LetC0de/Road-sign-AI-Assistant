@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Road Sign Assistant</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="main-wrapper">
+    <div class="container">
+
+        <!-- Header -->
+        <h1>🚦 Road Sign Assistant</h1>
+
+        <!-- Output Box -->
+        <div class="output-box" id="outputBox">
+            <p class="placeholder">LLM response will appear here...</p>
+        </div>
+
+        <!-- Input Section -->
+        <div class="input-section">
+
+            <!-- Upload Button -->
+            <label for="imageUpload" class="upload-btn">Upload Image</label>
+            <input type="file" id="imageUpload" hidden accept="image/*">
+
+            <!-- Text Input -->
+            <input type="text" id="userInput" placeholder="Ask something ...">
+
+            <!-- Send Button -->
+            <button id="sendBtn">Send ➤</button>
+
+        </div>
+
+    </div>
+
+    <!-- Signs Gallery Box -->
+    <div class="signs-gallery">
+        <h2>Traffic Signs</h2>
+        <div class="signs-grid" id="signsGrid">
+            <!-- Signs will be loaded here -->
+        </div>
+    </div>
+</div>
+
+<!-- Notification Popup -->
+<div id="notification" class="notification">
+    <span id="notificationText"></span>
+</div>
+
+<script>
+
+    const BASE_URL = "https://your-backend.onrender.com";
+
+    // Load all sign images from Meta folder
+    const signsGrid = document.getElementById('signsGrid');
+    for (let i = 0; i <= 42; i++) {
+        const img = document.createElement('img');
+        img.src = `Meta/${i}.png`;
+        img.alt = `Traffic Sign ${i}`;
+        img.className = 'sign-image';
+        // Add data attribute to store sign number for identification
+        img.dataset.signNumber = i;
+        signsGrid.appendChild(img);
+    }
+
+    // Variable to track currently selected sign from gallery
+    let selectedSignFromGallery = null;
+
+    // Add click event listener to all sign images in the gallery
+    // This allows users to click on any traffic sign to send it to the LLM
+    signsGrid.addEventListener('click', async (e) => {
+        // Check if the clicked element is a sign image
+        if (e.target.classList.contains('sign-image')) {
+            const clickedSign = e.target;
+            const signNumber = clickedSign.dataset.signNumber;
+
+            // Remove 'selected' class from previously selected sign (if any)
+            const previouslySelected = document.querySelector('.sign-image.selected');
+            if (previouslySelected) {
+                previouslySelected.classList.remove('selected');
+            }
+
+            // Add 'selected' class to the clicked sign for visual feedback
+            clickedSign.classList.add('selected');
+
+            // Store the selected sign for reference
+            selectedSignFromGallery = clickedSign.src;
+
+            // Show notification that sign was selected
+            showNotification(`🚦 Traffic Sign selected`);
+
+            // Fetch the image from images folder (not Meta folder) to send to backend
+            try {
+                // Construct path to images folder using sign number
+                const imagePath = `${BASE_URL}/images/${signNumber}_${String(signNumber).padStart(5, '0')}_00000_00000.png`;
+                const response = await fetch(imagePath);
+                const blob = await response.blob();
+
+                // Create a File object from the blob
+                const file = new File([blob], `sign_${signNumber}.png`, { type: 'image/png' });
+
+                // Create FormData to send to backend
+                const formData = new FormData();
+                formData.append("image", file);
+
+                // Show loading message in output box
+                outputBox.innerHTML = "<p>⏳ Processing traffic sign... Please wait</p>";
+
+                // Send the selected sign to the backend LLM for prediction
+                const predictResponse = await fetch(`${BASE_URL}/predict`, {
+                    method: "POST",
+                    body: formData
+                });
+
+                const data = await predictResponse.json();
+
+                // Handle error response from backend
+                if (data.error) {
+                    outputBox.innerHTML = `<p style="color:red;">Error: ${data.error}</p>`;
+                    return;
+                }
+
+                // Display the LLM prediction result in the output box
+                // Replace \n with <br> to preserve line breaks in HTML
+                const formattedExplanation = data.explanation.replace(/\n/g, '<br>');
+                outputBox.innerHTML = `<h3>🚦 Prediction: ${data.prediction}</h3><p><strong>Confidence:</strong> ${data.confidence}%</p><hr><p>${formattedExplanation}</p>`;
+
+                // Show success notification
+                showNotification(` Sign analyzed successfully!`);
+
+            } catch (error) {
+                // Handle any errors during the fetch or prediction process
+                outputBox.innerHTML = "<p style='color:red;'>Error processing sign. Please try again.</p>";
+                console.error('Error:', error);
+            }
+        }
+    });
+
+    // Notification function
+    function showNotification(message) {
+        const notification = document.getElementById("notification");
+        const notificationText = document.getElementById("notificationText");
+
+        notificationText.textContent = message;
+        notification.classList.add("show");
+
+        setTimeout(() => {
+            notification.classList.remove("show");
+        }, 3000);
+    }
+
+    // Prediction functionality
+    const sendBtn = document.getElementById("sendBtn");
+    const outputBox = document.getElementById("outputBox");
+    const imageUpload = document.getElementById("imageUpload");
+    const userInput = document.getElementById("userInput"); // Get the text input element
+
+    // BASIC INPUT CAPTURE EXAMPLE
+    // This function demonstrates how to capture text from the input field
+    function captureUserInput() {
+        // Step 1: Get the value (text) from the input field
+        const userMessage = userInput.value;
+
+        // Step 2: Check if the input is not empty
+        if (userMessage.trim() === "") {
+            alert("Please enter a message!");
+            return null;
+        }
+
+        // Step 3: Return the captured text
+        return userMessage;
+    }
+
+    // Example: Add Enter key support to send message
+    // This allows users to press Enter to submit instead of clicking Send
+    userInput.addEventListener("keypress", async (e) => {
+        // Check if the pressed key is Enter (key code 13)
+        if (e.key === "Enter") {
+            // Get the text input
+            const message = captureUserInput();
+
+            if (message) {
+                // Display the user's message in the output box
+                outputBox.innerHTML = `<p><strong>You:</strong> ${message}</p><p>⏳ Waiting for response...</p>`;
+
+                // Clear the input field after capturing
+                userInput.value = "";
+
+                try {
+                    // Send the message to the backend /chat route
+                    const response = await fetch(`${BASE_URL}/chat`, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify({ message: message })
+                    });
+
+                    // Parse the JSON response from backend
+                    const data = await response.json();
+
+                    // Check if there was an error
+                    if (data.error) {
+                        outputBox.innerHTML = `<p style="color:red;">Error: ${data.error}</p>`;
+                        return;
+                    }
+
+                    // Display the LLM response in the output box
+                    // Replace \n with <br> to preserve line breaks in HTML
+                    const formattedResponse = data.response.replace(/\n/g, '<br>');
+                    outputBox.innerHTML = `<p><strong>You:</strong> ${message}</p><hr><p><strong>Assistant:</strong> ${formattedResponse}</p>`;
+
+                    // Show success notification
+                    showNotification(`✅ Response received!`);
+
+                } catch (error) {
+                    // Handle any errors during the fetch process
+                    outputBox.innerHTML = `<p style="color:red;">Error: Could not connect to server</p>`;
+                    console.error('Error:', error);
+                }
+            }
+        }
+    });
+
+    // Show notification when image is uploaded
+    imageUpload.addEventListener("change", (e) => {
+        if (e.target.files.length > 0) {
+            const fileName = e.target.files[0].name;
+            showNotification(`📷 Photo uploaded: ${fileName}`);
+
+            // Change upload button color
+            const uploadBtn = document.querySelector('.upload-btn');
+            uploadBtn.classList.add('uploaded');
+        }
+    });
+
+    sendBtn.addEventListener("click", async () => {
+        // Check if user has uploaded an image
+        if (imageUpload.files.length > 0) {
+            // Handle image upload
+            const file = imageUpload.files[0];
+            // FormData create
+            const formData = new FormData();
+            formData.append("image", file);
+
+            // Loading message
+            outputBox.innerHTML = "<p>⏳ Processing... Please wait</p>";
+
+            try {
+                const response = await fetch(`${BASE_URL}/predict`, {
+                    method: "POST",
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.error) {
+                    outputBox.innerHTML = `<p style="color:red;">Error: ${data.error}</p>`;
+                    return;
+                }
+
+                // Show result
+                // Replace \n with <br> to preserve line breaks in HTML
+                const formattedExplanation = data.explanation.replace(/\n/g, '<br>');
+                outputBox.innerHTML = `<h3>🚦 Prediction: ${data.prediction}</h3><p><strong>Confidence:</strong> ${data.confidence}%</p><hr><p>${formattedExplanation}</p>`;
+
+                // Clear the file input after successful upload
+                imageUpload.value = "";
+
+                // Remove uploaded class from upload button
+                const uploadBtn = document.querySelector('.upload-btn');
+                uploadBtn.classList.remove('uploaded');
+
+            } catch (error) {
+                outputBox.innerHTML = "<p style='color:red;'>Server error</p>";
+            }
+        } else if (userInput.value.trim() !== "") {
+            // Handle text message
+            const message = userInput.value.trim();
+
+            // Display the user's message in the output box
+            outputBox.innerHTML = `<p><strong>You:</strong> ${message}</p><p>⏳ Waiting for response...</p>`;
+
+            // Clear the input field
+            userInput.value = "";
+
+            try {
+                // Send the message to the backend /chat route
+                const response = await fetch(`${BASE_URL}/chat`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ message: message })
+                });
+
+                const data = await response.json();
+
+                if (data.error) {
+                    outputBox.innerHTML = `<p style="color:red;">Error: ${data.error}</p>`;
+                    return;
+                }
+
+                // Display the LLM response
+                // Replace \n with <br> to preserve line breaks in HTML
+                const formattedResponse = data.response.replace(/\n/g, '<br>');
+                outputBox.innerHTML = `<p><strong>You:</strong> ${message}</p><hr><p><strong>Assistant:</strong> ${formattedResponse}</p>`;
+
+                // Show success notification
+                showNotification(`✅ Response received!`);
+
+            } catch (error) {
+                outputBox.innerHTML = `<p style="color:red;">Error: Could not connect to server</p>`;
+                console.error('Error:', error);
+            }
+        } else {
+            alert("Please enter a message or upload an image!");
+        }
+    });
+</script>
+
+</body>
+</html>
