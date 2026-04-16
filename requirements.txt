@@ -1,0 +1,10 @@
+flask
+flask-cors
+tensorflow
+pillow
+numpy
+python-dotenv
+langchain
+langchain-core
+langchain-mistralai
+gunicorn
