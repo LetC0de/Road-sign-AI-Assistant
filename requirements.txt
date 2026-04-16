@@ -1,6 +1,6 @@
 flask
 flask-cors
-tensorflow
+tensorflow==2.15.0
 pillow
 numpy
 python-dotenv
