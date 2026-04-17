@@ -29,10 +29,13 @@ app.secret_key = os.getenv('SECRET_KEY')
 conversation_memory = {}
 
 # ─── LOAD ML MODEL ───
-model_path = os.path.join(os.getcwd(), "traffic_sign_model.h5",compile=False)
+model_path = os.path.join(os.getcwd(), "traffic_sign_model.h5")
+
 if not os.path.exists(model_path):
     raise Exception(f"Model file not found at {model_path}")
-model = load_model(model_path)
+
+model = load_model(model_path, compile=False)
+
 print("✅ Model loaded successfully")
 IMG_SIZE = 64
 
