@@ -95,7 +95,7 @@
             // Fetch the image from images folder (not Meta folder) to send to backend
             try {
                 // Construct path to images folder using sign number
-                const imagePath = `${BASE_URL}/images/${signNumber}_${String(signNumber).padStart(5, '0')}_00000_00000.png`;
+                const imagePath = `${BASE_URL}/images/${signNumber}_00000_00000_00000.png`;
                 const response = await fetch(imagePath);
                 const blob = await response.blob();
 
