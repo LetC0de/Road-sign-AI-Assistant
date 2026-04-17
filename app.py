@@ -29,7 +29,7 @@ app.secret_key = os.getenv('SECRET_KEY')
 conversation_memory = {}
 
 # ─── LOAD ML MODEL ───
-model_path = os.path.join(os.getcwd(), "traffic_sign_model.h5")
+model_path = os.path.join(os.getcwd(), "traffic_sign_model.keras")
 
 if not os.path.exists(model_path):
     raise Exception(f"Model file not found at {model_path}")
