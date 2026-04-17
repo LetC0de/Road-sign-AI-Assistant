@@ -175,20 +175,34 @@ def predict():
         file = request.files["image"]
 
         # ─── IMAGE PROCESSING ───
+        print("📷 File received:", file.filename)
+
         img = Image.open(file).convert("RGB")
         img = img.resize((IMG_SIZE, IMG_SIZE))
 
-        img_array = np.array(img) / 255.0
+        img_array = np.array(img, dtype=np.float32) / 255.0
         img_array = np.expand_dims(img_array, axis=0)
 
+        print("Shape:", img_array.shape)
+
         # ─── ML PREDICTION ───
-        result = model.predict(img_array)
+        result = model.predict(img_array, verbose=0)
+        print("Raw prediction:", result)
+
         predicted_class = int(np.argmax(result))
         confidence = float(np.max(result)) * 100
 
-        # ✅ FIX: Convert model prediction to correct label
-        # Model output → folder name → actual label name
+        print("Predicted class:", predicted_class)
+
+        # Safe mapping
+        if predicted_class not in class_labels:
+            raise Exception(f"Invalid class index: {predicted_class}")
+
         predicted_folder = class_labels[predicted_class]
+
+        if int(predicted_folder) not in labels:
+            raise Exception(f"Invalid label: {predicted_folder}")
+
         prediction = labels[int(predicted_folder)]
 
         # ─── LLM CALL WITH STRUCTURED OUTPUT AND MEMORY ───
