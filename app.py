@@ -5,6 +5,8 @@ import numpy as np
 from PIL import Image
 import os
 
+print("🚀 Starting Flask App...")
+
 # LLM imports
 from langchain_mistralai import ChatMistralAI
 from langchain_core.prompts import ChatPromptTemplate
@@ -27,7 +29,11 @@ app.secret_key = os.getenv('SECRET_KEY')
 conversation_memory = {}
 
 # ─── LOAD ML MODEL ───
-model = load_model("traffic_sign_model.keras")
+model_path = os.path.join(os.getcwd(), "traffic_sign_model.keras")
+if not os.path.exists(model_path):
+    raise Exception(f"Model file not found at {model_path}")
+model = load_model(model_path)
+print("✅ Model loaded successfully")
 IMG_SIZE = 64
 
 # ✅ DIRECT CLASS INDICES (NO FILE LOAD)
@@ -298,4 +304,5 @@ RULES:
 
 # ─── RUN APP ───
 if __name__ == "__main__":
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
