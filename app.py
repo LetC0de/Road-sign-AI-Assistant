@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, origins=["https://road-sign-ai-assistant.vercel.app"])
 
 # Set secret key for session management
 # This is required for Flask sessions to work
