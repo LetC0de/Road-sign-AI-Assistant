@@ -4,10 +4,6 @@ from flask_cors import CORS
 import numpy as np
 from PIL import Image
 import os
-import gc
-import time
-
-print("🚀 Starting Flask App...")
 
 # LLM imports
 from langchain_mistralai import ChatMistralAI
@@ -20,7 +16,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app, origins=["https://road-sign-ai-assistant.vercel.app"])
+CORS(app)
 
 # Set secret key for session management
 # This is required for Flask sessions to work
@@ -30,30 +26,8 @@ app.secret_key = os.getenv('SECRET_KEY')
 # Key: session_id, Value: list of messages (HumanMessage and AIMessage)
 conversation_memory = {}
 
-# Track last access time for each session
-session_last_access = {}
-MAX_SESSION_AGE = 1800  # 30 minutes
-
-def cleanup_old_sessions():
-    """Remove sessions older than MAX_SESSION_AGE"""
-    current_time = time.time()
-    sessions_to_remove = [
-        sid for sid, last_access in session_last_access.items()
-        if current_time - last_access > MAX_SESSION_AGE
-    ]
-    for sid in sessions_to_remove:
-        conversation_memory.pop(sid, None)
-        session_last_access.pop(sid, None)
-
 # ─── LOAD ML MODEL ───
-model_path = os.path.join(os.getcwd(), "traffic_sign_model.keras")
-
-if not os.path.exists(model_path):
-    raise Exception(f"Model file not found at {model_path}")
-
-model = load_model(model_path, compile=False)
-
-print("✅ Model loaded successfully")
+model = load_model("traffic_sign_model.keras")
 IMG_SIZE = 64
 
 # ✅ DIRECT CLASS INDICES (NO FILE LOAD)
@@ -174,18 +148,12 @@ def serve_image(filename):
 @app.route("/predict", methods=["POST"])
 def predict():
     try:
-        # Cleanup old sessions
-        cleanup_old_sessions()
-
         # Get or create session ID for this user
         if 'session_id' not in session:
             import uuid
             session['session_id'] = str(uuid.uuid4())
 
         session_id = session['session_id']
-
-        # Update last access time
-        session_last_access[session_id] = time.time()
 
         # Initialize conversation memory for this session if it doesn't exist
         if session_id not in conversation_memory:
@@ -198,79 +166,21 @@ def predict():
         file = request.files["image"]
 
         # ─── IMAGE PROCESSING ───
-        print("📷 File received:", file.filename)
-
         img = Image.open(file).convert("RGB")
         img = img.resize((IMG_SIZE, IMG_SIZE))
 
-        img_array = np.array(img, dtype=np.float32) / 255.0
+        img_array = np.array(img) / 255.0
         img_array = np.expand_dims(img_array, axis=0)
 
-        print("Shape:", img_array.shape)
-
         # ─── ML PREDICTION ───
-        result = model.predict(img_array, verbose=0)
-        print("Raw prediction:", result)
-
+        result = model.predict(img_array)
         predicted_class = int(np.argmax(result))
         confidence = float(np.max(result)) * 100
 
-        print("Predicted class:", predicted_class)
-
-        # Safe mapping
-        if predicted_class not in class_labels:
-            raise Exception(f"Invalid class index: {predicted_class}")
-
+        # ✅ FIX: Convert model prediction to correct label
+        # Model output → folder name → actual label name
         predicted_folder = class_labels[predicted_class]
-
-        if int(predicted_folder) not in labels:
-            raise Exception(f"Invalid label: {predicted_folder}")
-
         prediction = labels[int(predicted_folder)]
-
-        # Force memory cleanup after prediction
-        gc.collect()
-
-        # ─── FINAL RESPONSE ───
-        return jsonify({
-            "prediction": prediction,
-            "confidence": round(confidence, 2)
-        })
-
-    except Exception as e:
-        return jsonify({"error": str(e)})
-
-
-# ─── EXPLAIN ROUTE ───
-@app.route("/explain", methods=["POST"])
-def explain():
-    try:
-        # Cleanup old sessions
-        cleanup_old_sessions()
-
-        # Get or create session ID for this user
-        if 'session_id' not in session:
-            import uuid
-            session['session_id'] = str(uuid.uuid4())
-
-        session_id = session['session_id']
-
-        # Update last access time
-        session_last_access[session_id] = time.time()
-
-        # Initialize conversation memory for this session if it doesn't exist
-        if session_id not in conversation_memory:
-            conversation_memory[session_id] = []
-
-        # Get JSON data from the request
-        data = request.get_json()
-
-        # Extract the sign name from the JSON data
-        sign_name = data.get("sign_name", "")
-
-        # Validate that sign_name is not empty
-        if not sign_name or sign_name.strip() == "":
-            return jsonify({"error": "No sign_name provided"}), 400
 
         # ─── LLM CALL WITH STRUCTURED OUTPUT AND MEMORY ───
         # Create a chain: prompt -> llm -> output parser
@@ -278,16 +188,13 @@ def explain():
 
         # Invoke the chain with the sign name
         explanation = chain.invoke({
-            "sign_name": sign_name
+            "sign_name": prediction
         })
-
-        # Force memory cleanup after LLM call
-        gc.collect()
 
         # Store this interaction in conversation memory
         # Save what sign was detected and the explanation
         conversation_memory[session_id].append(
-            HumanMessage(content=f"User clicked on traffic sign: {sign_name}")
+            HumanMessage(content=f"User clicked on traffic sign: {prediction}")
         )
         conversation_memory[session_id].append(
             AIMessage(content=explanation)
@@ -295,11 +202,13 @@ def explain():
 
         # ─── FINAL RESPONSE ───
         return jsonify({
+            "prediction": prediction,
+            "confidence": round(confidence, 2),
             "explanation": explanation
         })
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": str(e)})
 
 
 # ─── CHAT ROUTE ───
@@ -308,18 +217,12 @@ def explain():
 @app.route("/chat", methods=["POST"])
 def chat():
     try:
-        # Cleanup old sessions
-        cleanup_old_sessions()
-
         # Get or create session ID for this user
         if 'session_id' not in session:
             import uuid
             session['session_id'] = str(uuid.uuid4())
 
         session_id = session['session_id']
-
-        # Update last access time
-        session_last_access[session_id] = time.time()
 
         # Initialize conversation memory for this session if it doesn't exist
         if session_id not in conversation_memory:
@@ -374,9 +277,6 @@ RULES:
             "question": user_message
         })
 
-        # Force memory cleanup after LLM call
-        gc.collect()
-
         # Store this interaction in conversation memory
         conversation_memory[session_id].append(
             HumanMessage(content=user_message)
@@ -398,5 +298,4 @@ RULES:
 
 # ─── RUN APP ───
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(debug=True)
